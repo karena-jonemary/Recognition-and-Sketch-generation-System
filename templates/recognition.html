@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Face Recognition Logs | CCTV Analytics{% endblock %}
+{% block page_title %}Known Recognitions{% endblock %}
+{% block header_title %}Recognition Logs{% endblock %}
+{% block header_subtitle %}Historical record of identified enrolled personnel caught on tape.{% endblock %}
+{% block content %}
+<div class="card" style="overflow-x: auto;">
+    <table class="table">
+        <thead>
+            <tr>
+                <th style="min-width: 250px;">Identified Person</th>
+                <th>Source Video ID</th>
+                <th>Detected Frame</th>
+                <th>Confidence Level</th>
+                <th>Logged At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td style="display:flex; align-items:center; gap:1rem; font-weight:600; color:var(--text-primary); font-size: 1.05rem;">
+                    {# Show matched DB photo, fall back to video crop for old results #}
+                    <img src="{{ url_for('static', filename=log.match_path|default(log.crop_path|default(''))) }}" alt="{{ log.name }}" style="border: 2px solid var(--border-color);">
+                    {{ log.name }}
+                </td>
+                <td class="text-secondary" style="font-family:var(--font-mono);">
+                    <a href="{{ url_for('results', video_id=log.video_id) }}" style="color:var(--accent-cyan);">{{ log.video_id }}</a>
+                </td>
+                <td class="text-secondary">Frame {{ log.frame_idx|default(log.frame_no|default('--')) }}</td>
+                <td>
+                    <span class="badge badge-success" style="font-size:0.85rem; padding:0.4rem 0.8rem;">{{ "%.1f"|format((1 - (log.distance|default(0)))*100) }}% MATCH</span>
+                </td>
+                <td class="text-muted" style="font-family:var(--font-mono); font-size:0.85rem;">{{ log.timestamp|default('--/--/----') }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-muted" style="text-align:center; padding: 4rem 1rem;">
+                    <div style="display:inline-block; padding: 1.5rem; background:var(--bg-dark); border-radius:50%; margin-bottom:1rem;">
+                        <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
+                    <p style="font-size: 1.1rem; color:var(--text-primary);">No recognizable faces logged yet.</p>
+                    <p>Process a video file to automatically populate this table.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

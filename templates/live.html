@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Live Camera | CCTV Analytics{% endblock %}
+{% block page_title %}Live Camera Feed{% endblock %}
+{% block header_title %}Real-Time Surveillance{% endblock %}
+{% block header_subtitle %}Monitoring active feed with real-time AI bounding box overlays.{% endblock %}
+{% block content %}
+<div class="card" style="padding:0; overflow:hidden; border: 1px solid var(--border-color);">
+    <div style="background:#000; display:flex; justify-content:center; align-items:center; height: 65vh; position: relative;">
+        <!-- Streaming MJPEG output directly from the route -->
+        <img src="{{ url_for('video_feed') }}" alt="Live Feed" style="max-height:100%; max-width:100%; border:none; object-fit:contain;">
+    </div>
+    
+    <div style="padding: 1.25rem 2rem; display:flex; justify-content:space-between; align-items:center; background: var(--bg-card-hover);">
+        <div style="display:flex; align-items:center; gap:1rem;">
+            <span style="display:inline-flex; align-items:center; gap:0.5rem; color:var(--alert-red); font-weight:600; font-size:0.9rem; letter-spacing:1px; animation:pulse 2s infinite;">
+                <div style="width:10px; height:10px; border-radius:50%; background:currentColor;"></div>
+                REC
+            </span>
+            <span class="text-secondary" style="font-family:var(--font-mono); font-size:0.85rem; padding-left: 1rem; border-left: 1px solid var(--border-color);">Source: Local Camera 0</span>
+        </div>
+        <div id="live-detections" style="font-size:0.95rem; font-weight:500;">
+            <span class="text-muted">Awaiting stream...</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+setInterval(() => {
+    fetch('/detections')
+        .then(r => r.json())
+        .then(d => {
+            const container = document.getElementById('live-detections');
+            if (d && d.length > 0) {
+                let badges = '';
+                d.forEach(face => {
+                    if (face.name === 'Unknown') {
+                        badges += '<span class="badge badge-alert" style="margin-left:0.5rem; background:rgba(239, 68, 68, 0.2); color:var(--alert-red); border:1px solid var(--alert-red);">Unknown Anomaly</span>';
+                    } else {
+                        badges += '<span class="badge badge-success" style="margin-left:0.5rem;">Verified: ' + face.name + '</span>';
+                    }
+                });
+                
+                container.innerHTML = '<div style="display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end;"><span class="text-success" style="display:flex; align-items:center; gap:0.5rem; margin-right:0.5rem;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Tracking ' + d.length + ' entities:</span>' + badges + '</div>';
+            } else {
+                container.innerHTML = '<span class="text-muted" style="display:flex; align-items:center; gap:0.5rem;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><line x1="3" y1="3" x2="21" y2="21"/></svg> No faces detected in viewport</span>';
+            }
+        })
+        .catch(err => console.log('Detection ping failed', err));
+}, 1000);
+</script>
+{% endblock %}

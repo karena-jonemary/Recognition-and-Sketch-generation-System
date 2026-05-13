@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Face Database | CCTV Analytics{% endblock %}
+{% block page_title %}Face Database{% endblock %}
+{% block header_title %}Enrolled Personnel{% endblock %}
+{% block header_subtitle %}Manage global identities authorized or flagged by the AI system.{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-primary" onclick="document.getElementById('enroll-modal').style.display='block';">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Enroll New Subject
+</button>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2rem; display:flex; justify-content:space-between; align-items:center;">
+    <input type="text" id="search-box" class="form-control" placeholder="Search identities by name..." style="max-width: 400px; margin: 0;" onkeyup="filterDatabase()">
+    <span class="text-secondary" style="font-size: 0.9rem;">Total Enrolled: <strong class="text-primary">{{ people|length }}</strong></span>
+</div>
+
+<div class="face-grid" id="db-grid">
+    {% for person in people %}
+    <div class="card face-card db-card" data-name="{{ person.name|lower }}" style="padding:0;">
+        <a href="{{ url_for('person', name=person.name) }}" style="display:block;">
+            <img src="{{ url_for('static', filename=person.image_path) }}" alt="{{ person.name }}">
+            <div class="info" style="border-top:1px solid var(--border-color);">
+                <h4 style="color:var(--text-primary); margin-bottom: 0.25rem;">{{ person.name }}</h4>
+                <p>Photos: {{ person.photo_count }}</p>
+            </div>
+        </a>
+        <div style="padding: 0.5rem; background: var(--bg-card-hover);">
+            <form action="{{ url_for('database_delete', name=person.name) }}" method="POST" onsubmit="return confirm('Erase {{ person.name }} from database?');">
+                <button type="submit" class="btn btn-danger" style="width:100%; padding:0.4rem; font-size:0.8rem;">Erase Record</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div style="grid-column: 1 / -1; padding: 4rem; text-align:center; color: var(--text-secondary); background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color);">
+        <p style="font-size: 1.1rem;">The database is currently empty.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Enroll Modal (Hidden by default) -->
+<div id="enroll-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+    <div class="card" style="width:100%; max-width:500px; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); border-top:4px solid var(--accent-cyan);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+            <h3 style="margin:0;">Enroll New Subject</h3>
+            <button onclick="document.getElementById('enroll-modal').style.display='none';" class="btn" style="background:transparent; color:var(--text-secondary); padding:0.2rem;"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <form action="{{ url_for('database_add') }}" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>Subject Identity Name</label>
+                <input type="text" name="name" class="form-control" required placeholder="e.g. John Doe">
+            </div>
+            <div class="form-group">
+                <label>Reference Photo (Frontal clear view)</label>
+                <input type="file" name="photo" accept=".png,.jpg,.jpeg" class="form-control" required style="padding: 0.5rem;">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;">Construct 128-D Encoding</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function filterDatabase() {
+    let input = document.getElementById('search-box').value.toLowerCase();
+    let grid = document.getElementById('db-grid');
+    let cards = grid.getElementsByClassName('db-card');
+    for (let i = 0; i < cards.length; i++) {
+        let name = cards[i].getAttribute('data-name');
+        if (name.indexOf(input) > -1) {
+            cards[i].style.display = "";
+        } else {
+            cards[i].style.display = "none";
+        }
+    }
+}
+</script>
+{% endblock %}

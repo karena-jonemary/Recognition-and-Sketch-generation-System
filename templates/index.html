@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | CCTV Analytics{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block header_title %}System Overview{% endblock %}
+{% block header_subtitle %}Real-time statistics and recent activities from your CCTV feeds.{% endblock %}
+{% block content %}
+<div class="grid-3 mb-2" style="margin-bottom: 2rem;">
+    <div class="card stat-card">
+        <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <div class="stat-content"><h3>Enrolled Persons</h3><div class="value">{{ people_count }}</div></div>
+    </div>
+    <div class="card stat-card">
+        <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+        <div class="stat-content"><h3>Total Detections</h3><div class="value text-cyan">{{ total_detections }}</div></div>
+    </div>
+    <div class="card stat-card alert-card">
+        <div class="stat-icon alert"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <div class="stat-content"><h3>Unknown Alerts</h3><div class="value text-alert">{{ unknown_alerts }}</div></div>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 1.5rem; display:flex; justify-content:space-between; font-size:1.1rem; color:var(--text-primary);">
+        Recent Processing Logs
+        <span class="badge badge-info">{{ total_videos }} videos</span>
+    </h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Video ID</th>
+                <th>Known Matches</th>
+                <th>Unknown Alerts</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in recent_videos %}
+            <tr>
+                <td><span class="text-secondary" style="font-family:var(--font-mono);">{{ r.video_id }}</span></td>
+                <td><span class="text-success font-weight-bold">{{ r.known|length }} Verified</span></td>
+                <td>{% if r.unknown|length > 0 %}<span class="badge badge-alert">{{ r.unknown|length }} Alerts</span>{% else %}-{% endif %}</td>
+                <td><a href="{{ url_for('results', video_id=r.video_id) }}" class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.8rem;">View Report</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-muted" style="text-align:center; padding: 2rem;">No videos processed yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

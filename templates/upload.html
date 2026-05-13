@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Video Analysis | CCTV Analytics{% endblock %}
+{% block page_title %}Video Upload & Forensics{% endblock %}
+{% block header_title %}Batch Processing & Interactive Forensics{% endblock %}
+{% block header_subtitle %}Upload footage, run full system scans, or extract a frame to directly isolate individuals.{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+    <!-- Left: Video & Crop Interface -->
+    <div class="card" style="display:flex; flex-direction:column;">
+        <h3 style="margin-bottom: 1rem; color:var(--accent-cyan); display:flex; align-items:center; gap:0.5rem;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
+            Interactive Player
+        </h3>
+
+        <!-- File Upload Form Wrapper -->
+        <form id="batch-form" action="{{ url_for('upload_video') }}" method="POST" enctype="multipart/form-data" style="margin-bottom: 1rem;">
+            <label class="btn btn-secondary" style="width:100%; padding:0.8rem; cursor:pointer; text-align:center;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Select Video File 
+                <input type="file" id="video-upload" name="video" accept=".mp4,.avi,.mov,.mkv,.wmv" style="display:none;" required>
+            </label>
+            <p id="filename" class="text-cyan mt-2" style="font-weight:600; font-family:var(--font-mono); text-align:center; margin-top:0.5rem;"></p>
+            
+            <div style="margin-top:1rem; padding-top:1rem; border-top:1px dashed var(--border-color);">
+                <label style="color:var(--text-primary); font-size:0.9rem;">Batch Scan Interval</label>
+                <div style="display:flex; align-items:center; gap:1rem;">
+                    <input type="range" name="frame_interval" min="1" max="150" value="30" style="flex:1;" oninput="document.getElementById('interval-val').innerText = this.value;">
+                    <span id="interval-val" class="badge badge-info" style="min-width:40px; text-align:center;">30</span>
+                </div>
+            </div>
+        </form>
+
+        <!-- Player Structure -->
+        <div style="background:var(--bg-dark); border-radius:8px; overflow:hidden; border: 1px solid var(--border-color); display:flex; align-items:center; justify-content:center; min-height: 250px;">
+            <p id="player-hint" class="text-muted" style="pointer-events:none; font-size:0.9rem;">No video loaded.</p>
+            <video id="vid-player" controls preload="metadata" style="max-width:100%; max-height: 350px; display:none;"></video>
+        </div>
+        
+        <!-- Capture Frame Button -->
+        <button id="btn-capture" type="button" class="btn btn-secondary" style="margin-top:0.5rem; display:none; padding:0.5rem;">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:0.5rem;"><camera></camera><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Extract Current Frame for Cropping
+        </button>
+
+        <!-- Extracted Frame Cropping Tab -->
+        <div id="crop-section" style="display:none; margin-top:1.5rem; border-top:1px dashed var(--border-color); padding-top:1rem; text-align:center;">
+            <h4 style="color:var(--text-primary); margin-bottom:0.5rem; text-align:left;">Frame Cropper</h4>
+            <p class="text-muted" style="font-size:0.85rem; margin-bottom:1rem; text-align:left;">
+                Click and drag on the image below to isolate a face.
+            </p>
+            <div style="position:relative; display:inline-block; border:1px solid var(--accent-cyan); border-radius:4px; overflow:hidden;">
+                <!-- We use two canvases: one holds the static image, one holds the drawing overlay -->
+                <canvas id="base-canvas" style="display:block; max-width:100%;"></canvas>
+                <canvas id="draw-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; cursor:crosshair;"></canvas>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:1rem; margin-top: 1.5rem;">
+            <button id="btn-batch" class="btn btn-secondary" style="flex:1;" onclick="document.getElementById('batch-form').submit();" disabled>Global Batch Scan</button>
+            <button id="btn-analyze" class="btn btn-primary" style="flex:1; border:1px solid var(--accent-cyan);" disabled>Analyze Manual Crop</button>
+        </div>
+    </div>
+
+    <!-- Right: Intelligence Results -->
+    <div class="card" id="results-panel">
+        <h3 style="margin-bottom: 1.5rem; color:var(--success-green); display:flex; align-items:center; gap:0.5rem;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Instant Forensics Output
+        </h3>
+        <div id="result-content" style="text-align:center; padding: 4rem 1rem; color:var(--text-secondary); border: 2px dashed var(--border-color); border-radius: 8px; background:var(--bg-dark);">
+            <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="opacity:0.5; margin-bottom:1rem;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <p>Awaiting manual crop submission.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const vidInput = document.getElementById('video-upload');
+const player = document.getElementById('vid-player');
+const hint = document.getElementById('player-hint');
+const btnCapture = document.getElementById('btn-capture');
+const cropSection = document.getElementById('crop-section');
+const baseCanvas = document.getElementById('base-canvas');
+const drawCanvas = document.getElementById('draw-canvas');
+const baseCtx = baseCanvas.getContext('2d');
+const drawCtx = drawCanvas.getContext('2d');
+
+const btnBatch = document.getElementById('btn-batch');
+const btnAnalyze = document.getElementById('btn-analyze');
+const resultContent = document.getElementById('result-content');
+
+let cropRect = null;
+let isDrawing = false;
+let startX = 0, startY = 0;
+
+// Load video
+vidInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    document.getElementById('filename').innerText = file.name;
+    player.src = URL.createObjectURL(file);
+    player.style.display = 'block';
+    hint.style.display = 'none';
+    btnCapture.style.display = 'inline-flex';
+    btnBatch.disabled = false;
+    cropSection.style.display = 'none';
+    cropRect = null;
+    btnAnalyze.disabled = true;
+});
+
+// Capture frame
+btnCapture.addEventListener('click', () => {
+    if (player.readyState < 2) return;
+    
+    // Pause video if playing
+    player.pause();
+    
+    // Set up canvases to match video intrinsic dimensions
+    baseCanvas.width = player.videoWidth;
+    baseCanvas.height = player.videoHeight;
+    drawCanvas.width = player.videoWidth;
+    drawCanvas.height = player.videoHeight;
+    
+    // Draw current video frame to base canvas
+    baseCtx.drawImage(player, 0, 0, baseCanvas.width, baseCanvas.height);
+    
+    // Clear draw canvas
+    drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    
+    cropSection.style.display = 'block';
+    cropRect = null;
+    btnAnalyze.disabled = true;
+    
+    // Scroll down securely to the cropper
+    cropSection.scrollIntoView({ behavior: 'smooth', block: 'end' });
+});
+
+function getCanvasCoords(e) {
+    const rect = drawCanvas.getBoundingClientRect();
+    const scaleX = drawCanvas.width / rect.width;
+    const scaleY = drawCanvas.height / rect.height;
+    return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+    };
+}
+
+drawCanvas.addEventListener('mousedown', (e) => {
+    isDrawing = true;
+    const c = getCanvasCoords(e);
+    startX = c.x; startY = c.y;
+});
+
+drawCanvas.addEventListener('mousemove', (e) => {
+    if(!isDrawing) return;
+    drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    
+    const c = getCanvasCoords(e);
+    const w = Math.abs(c.x - startX);
+    const h = Math.abs(c.y - startY);
+    const x = Math.min(startX, c.x);
+    const y = Math.min(startY, c.y);
+    
+    drawCtx.strokeStyle = '#06b6d4';
+    drawCtx.lineWidth = 4;
+    drawCtx.setLineDash([8, 8]);
+    drawCtx.strokeRect(x, y, w, h);
+    drawCtx.fillStyle = 'rgba(6, 182, 212, 0.2)';
+    drawCtx.fillRect(x, y, w, h);
+});
+
+drawCanvas.addEventListener('mouseup', (e) => {
+    if(!isDrawing) return;
+    isDrawing = false;
+    
+    const c = getCanvasCoords(e);
+    const w = Math.abs(c.x - startX);
+    const h = Math.abs(c.y - startY);
+    
+    if(w > 20 && h > 20) {
+        cropRect = {
+            x: Math.min(startX, c.x),
+            y: Math.min(startY, c.y),
+            w: w,
+            h: h
+        };
+        btnAnalyze.disabled = false;
+    } else {
+        drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+        cropRect = null;
+        btnAnalyze.disabled = true;
+    }
+});
+
+btnAnalyze.onclick = () => {
+    if(!cropRect) return;
+    
+    resultContent.innerHTML = '<div style="text-align:center; padding: 4rem 1rem;"><div class="status-dot" style="margin: 0 auto 1rem; width:16px; height:16px; background:var(--accent-cyan); box-shadow:0 0 10px var(--accent-cyan);"></div><p class="text-cyan">Executing Neural Scan on Cropped Frame...</p></div>';
+    
+    // Create an offscreen canvas containing ONLY the cropped region from the base image
+    const tmp = document.createElement('canvas');
+    tmp.width = cropRect.w; 
+    tmp.height = cropRect.h;
+    
+    const tmpCtx = tmp.getContext('2d');
+    tmpCtx.drawImage(
+        baseCanvas, 
+        cropRect.x, cropRect.y, cropRect.w, cropRect.h,
+        0, 0, tmp.width, tmp.height
+    );
+    
+    const b64 = tmp.toDataURL('image/jpeg', 0.95);
+    
+    fetch('/api/analyze_frame', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({image: b64})
+    }).then(r => r.json()).then(d => {
+        if(d.error) {
+            resultContent.innerHTML = '<div style="padding: 2rem;"><h4 class="text-alert">System Error</h4><p class="text-muted">' + d.error + '</p></div>';
+        } else if (d.status === 'known') {
+            resultContent.innerHTML = '<div style="padding:3rem 1rem; text-align:center;"><svg width="64" height="64" class="text-success" stroke="currentColor" fill="none" viewBox="0 0 24 24"><path stroke-width="1.5" d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline stroke-width="1.5" points="22 4 12 14.01 9 11.01"/></svg><h3 class="text-success">Verified Identity</h3><h2 style="color:var(--text-primary); font-size:2rem;">' + d.name + '</h2></div>';
+        } else if (d.status === 'unknown') {
+            let htmlStr = '<div style="background:var(--bg-dark); padding:1.5rem; border-radius:8px; border:1px solid var(--alert-red);"><h3 class="text-alert" style="margin-bottom:1.5rem; text-align:center;">UNKNOWN ANOMALY DETECTED</h3><div style="display:flex; justify-content:center; gap:1.5rem; flex-wrap:wrap;">';
+            if(d.restored) {
+                htmlStr += '<div style="text-align:center;"><img src="' + d.restored + '" style="border-radius:6px; max-height:220px; border:1px solid var(--border-color);"><p class="text-cyan font-weight-bold" style="font-size:0.85rem; margin-top:0.75rem;">GFPGAN RESTORED</p></div>';
+            }
+            htmlStr += '<div style="text-align:center;"><img src="' + d.sketch + '" style="border-radius:6px; max-height:220px; border:1px solid var(--border-color);"><p class="text-secondary" style="font-size:0.85rem; margin-top:0.75rem;">FORENSIC SKETCH</p></div></div></div>';
+            resultContent.innerHTML = htmlStr;
+        } else {
+            resultContent.innerHTML = '<div style="padding: 3rem 1rem;"><h4 class="text-secondary">TARGET LOST</h4><p class="text-muted">' + d.message + '</p></div>';
+        }
+    }).catch(e => {
+        resultContent.innerHTML = '<div style="padding: 2rem;"><h4 class="text-alert">NETWORK ERROR</h4></div>';
+    });
+};
+</script>
+{% endblock %}

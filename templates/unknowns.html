@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Unknown Alerts | CCTV Analytics{% endblock %}
+{% block page_title %}Unknown Alerts{% endblock %}
+{% block header_title %}Critical Alerts{% endblock %}
+{% block header_subtitle %}Instances where unrecognized faces triggered a security flag.{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('upload') }}" class="btn btn-primary"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Process New Video</a>
+{% endblock %}
+
+{% block content %}
+<div class="face-grid">
+    {% for log in logs %}
+    <div class="face-card alert-card">
+        <div style="position:relative;">
+            <img src="{{ url_for('static', filename=log.crop_path) }}" alt="Unknown">
+            <span class="badge badge-alert" style="position:absolute; top:8px; right:8px; font-size:0.6rem; backdrop-filter:blur(4px);">FLAGGED</span>
+        </div>
+        <div class="info">
+            <h4 class="text-alert" style="margin-bottom: 0.5rem; text-transform:uppercase; letter-spacing:0.5px;">Unknown Subject</h4>
+            <div style="display:flex; flex-direction:column; gap:0.25rem; margin-bottom:1rem; border-top:1px solid var(--border-color); padding-top:0.5rem;">
+                <p style="display:flex; justify-content:space-between;"><span>Video ID:</span> <span class="text-primary">{{ log.video_id[:8] }}...</span></p>
+                <p style="display:flex; justify-content:space-between;"><span>Frame:</span> <span class="text-primary">{{ log.frame_idx }}</span></p>
+            </div>
+            
+            <form action="{{ url_for('sketch') }}" method="GET">
+                <input type="hidden" name="image" value="{{ url_for('static', filename=log.crop_path) }}">
+                <button type="submit" class="btn btn-secondary" style="width:100%; font-size:0.8rem;">Analyze in Sketch Tool</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div style="grid-column: 1 / -1; padding: 4rem; text-align:center; color: var(--text-secondary); background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color);">
+        <div style="display:inline-block; padding: 1.5rem; background:var(--bg-dark); border-radius:50%; margin-bottom:1.5rem;">
+            <svg fill="none" stroke="currentColor" stroke-width="2" style="width:48px;height:48px; color:var(--success-green);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <h3 style="color:var(--text-primary); font-size: 1.4rem; margin-bottom: 0.5rem;">All Clear</h3>
+        <p style="font-size: 1.05rem;">No unknown perpetrators have been detected in recent processing.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
